@@ -1,22 +1,32 @@
 from fastapi import FastAPI, HTTPException, Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, ValidationInfo
 from uuid import uuid4
 from typing import List, Dict
 import math
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 app = FastAPI()
 
-receipts_db: Dict[str, dict] = {}
-points_db: Dict[str, int] = {}
-
 AFTERNOON_START = datetime.strptime("14:00", "%H:%M").time()
 AFTERNOON_END = datetime.strptime("16:00", "%H:%M").time()
+PRICE_MULTIPLIER = Decimal("0.2")
 
 class Item(BaseModel):
     shortDescription: str = Field(..., description="Short description of the item")
     price: str = Field(..., description="Price of the item")
+
+    @field_validator("price")
+    def validate_price(cls, price_value):
+        try:
+            price = Decimal(price_value)
+            if price < 0:
+                # raise HTTPException(status_code=400, detail="Price must be greater than zero")
+                raise ValueError("Price must be greater than zero")
+            return price_value
+        except InvalidOperation:
+            # raise HTTPException(status_code=400, detail="Price must be a valid decimal number")
+            raise ValueError("Price must be a valid decimal number")
 
 class Receipt(BaseModel):
     retailer: str = Field(..., description="Name of the retailer")
@@ -24,6 +34,40 @@ class Receipt(BaseModel):
     purchaseTime: str = Field(..., description="Purchase time in HH:MM format")
     items: List[Item] = Field(..., min_items=1, description="List of items purchased")
     total: str = Field(..., description="Total amount spent")
+
+    @field_validator("purchaseDate")
+    def validate_date(cls, purchaseDate_value):
+        try:
+            datetime.strptime(purchaseDate_value, "%Y-%m-%d")
+            return purchaseDate_value
+        except ValueError:
+            # raise HTTPException(status_code=400, detail="purchaseDate must be a valid input of format YYYY-MM-DD")
+            raise ValueError("purchaseDate must be a valid input of format YYYY-MM-DD")
+        
+    @field_validator("purchaseTime")
+    def validate_time(cls, purchaseTime_value):
+        try:
+            datetime.strptime(purchaseTime_value, "%H:%M").time()
+            return purchaseTime_value
+        except ValueError:
+            # raise HTTPException(status_code=400, detail="purchaseTime must be a valid input of 24 Hours format (HH:MM)")
+            raise ValueError("purchaseTime must be a valid input of 24 Hours format (HH:MM)")
+        
+    @field_validator("total")
+    def validate_total(cls, total_value, info: ValidationInfo) -> str:
+        try:
+            total = Decimal(total_value)
+            items = info.data.get("items")
+            if items is not None:
+                calculated_total = sum(Decimal(item.price) for item in items)
+                if total != calculated_total:
+                    # raise HTTPException(status_code=400, detail=f"Total ({total}) does not match the sum of item prices ({calculated_total})")
+                    raise ValueError(f"Total ({total}) does not match the sum of item prices ({calculated_total})")
+            return total_value
+        except InvalidOperation:
+            # raise HTTPException(status_code=400, detail="Total must be a valid decimal number")
+            raise ValueError("Total must be a valid decimal number")
+
 
 class ReceiptResponse(BaseModel):
     id: str = Field(..., description="Unique ID assigned to the receipt")
@@ -55,7 +99,7 @@ def calculate_points(receipt: Receipt) -> int:
         trimmed_length = len(item.shortDescription.strip())
         item_price = Decimal(item.price)
         if trimmed_length % 3 == 0:
-            points += math.ceil(item_price * Decimal("0.2"))
+            points += math.ceil(item_price * PRICE_MULTIPLIER)
 
     # Rule 6: 6 points if the day in the purchase date is odd
     purchase_date = datetime.strptime(receipt.purchaseDate, "%Y-%m-%d")
@@ -68,6 +112,9 @@ def calculate_points(receipt: Receipt) -> int:
         points += 10
 
     return points
+
+receipts_db: Dict[str, Receipt] = {}
+points_db: Dict[str, int] = {}
 
 @app.post("/receipts/process", response_model=ReceiptResponse, status_code=200)
 async def process_receipt(receipt: Receipt):
@@ -86,5 +133,5 @@ async def get_points(id: str = Path(..., description="Receipt ID")):
         raise HTTPException(status_code=404, detail="No receipt found for given id")
     
     points = points_db[id]
-    
+
     return {"points": points}
