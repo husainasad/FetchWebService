@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 from FetchApp.receipt_service import app, calculate_points, Receipt
 import copy
+from decimal import Decimal
 
 client = TestClient(app)
 
@@ -37,7 +38,8 @@ def test_process_receipt_valid_data():
     """
     response = client.post("/receipts/process", json=mock_valid_receipt)
     assert response.status_code == 200
-    assert "id" in response.json()
+    response_data = response.json()
+    assert "id" in response_data
 
 def test_process_receipt_invalid_data_retailer():
     """
@@ -133,6 +135,27 @@ def test_process_receipt_invalid_data_Total():
     invalid_receipt["total"] = "randomString"
     response = client.post("/receipts/process", json=invalid_receipt)
     assert response.status_code == 422
+
+def test_process_receipt_total_mismatch():
+    """
+    Test /receipts/process with a total that does not match the sum of item prices.
+    Ensures the endpoint rejects such receipts with a 422 error due to model validation.
+    """
+    invalid_receipt = mock_valid_receipt.copy()
+    correct_total = sum(float(item["price"]) for item in invalid_receipt["items"])
+    correct_total_decimal = Decimal(f"{correct_total:.2f}")
+
+    mismatched_total = correct_total + 5
+    mismatched_total_decimal = Decimal(f"{mismatched_total:.2f}")
+    invalid_receipt["total"] = f"{mismatched_total:.2f}"
+
+    response = client.post("/receipts/process", json=invalid_receipt)
+    assert response.status_code == 422
+
+    expected_error_msg = f"Value error, Total {mismatched_total_decimal} does not match the sum of individual item prices, {correct_total_decimal}."
+    print(response.json()["detail"][0]["msg"])
+    print(expected_error_msg)
+    assert response.json()["detail"][0]["msg"] == expected_error_msg
 
 def test_get_points_success():
     """

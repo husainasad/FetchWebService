@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from uuid import uuid4
 from typing import List, Dict
 import math
@@ -65,6 +65,21 @@ class Receipt(BaseModel):
         description="The total amount paid on the receipt.", 
         json_schema_extra={"example": "35.35"}
     )
+
+    @model_validator(mode="after")
+    def validate_total_matches_items(cls, values):
+        """
+        Validates that the total matches the sum of the item prices.
+        """
+        items = values.items
+        total = values.total
+
+        sum_of_prices = sum(Decimal(item.price) for item in items)
+
+        if sum_of_prices != Decimal(total):
+            raise ValueError(f"Total {total} does not match the sum of individual item prices, {sum_of_prices}.")
+
+        return values
 
 # Response Model for Receipt Processing API
 class ReceiptResponse(BaseModel):
