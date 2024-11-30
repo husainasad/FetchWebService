@@ -153,8 +153,6 @@ def test_process_receipt_total_mismatch():
     assert response.status_code == 422
 
     expected_error_msg = f"Value error, Total {mismatched_total_decimal} does not match the sum of individual item prices, {correct_total_decimal}."
-    print(response.json()["detail"][0]["msg"])
-    print(expected_error_msg)
     assert response.json()["detail"][0]["msg"] == expected_error_msg
 
 def test_get_points_success():

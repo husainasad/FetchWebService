@@ -52,7 +52,7 @@ class Receipt(BaseModel):
     purchaseTime: time = Field(
         ..., 
         description="The time of the purchase printed on the receipt. 24-hour time expected.", 
-        json_schema_extra={"example": "13:01"}
+        json_schema_extra={"example": "6.49"}
     )
     items: List[Item] = Field(
         ..., 
