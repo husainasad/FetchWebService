@@ -8,11 +8,17 @@ from decimal import Decimal
 
 app = FastAPI()
 
-AFTERNOON_START = time(14, 0)
-AFTERNOON_END = time(16, 0)
-PRICE_MULTIPLIER = Decimal("0.2")
+# Constants for Points Calculation
+AFTERNOON_START = time(14, 0) # 2:00 PM
+AFTERNOON_END = time(16, 0) # 4:00 PM
+PRICE_MULTIPLIER = Decimal("0.2") # Item Price multiplier
 
+# Data Model for Individual Item
 class Item(BaseModel):
+    """
+    Represents an item on the receipt with details including
+    its short description and price.
+    """
     shortDescription: str = Field(
         ..., 
         pattern = "^[\\w\\s\\-]+$", 
@@ -26,7 +32,12 @@ class Item(BaseModel):
         json_schema_extra={"example": "6.49"}
     )
 
+# Data Model for Receipt
 class Receipt(BaseModel):
+    """
+    Represents a receipt submitted for processing, including
+    retailer details, purchase date,time, items, and total price.
+    """
     retailer: str = Field(
         ..., 
         pattern = "^[\\w\\s\\-&]+$", 
@@ -55,21 +66,33 @@ class Receipt(BaseModel):
         json_schema_extra={"example": "35.35"}
     )
 
+# Response Model for Receipt Processing API
 class ReceiptResponse(BaseModel):
+    """
+    Response containing the ID assigned to a processed receipt.
+    """
     id: str = Field(
         ..., pattern = "^\\S+$", 
         description="Returns the ID assigned to the receipt", 
         json_schema_extra={"example": "adb6b560-0eef-42bc-9d16-df48f30e89b2"}
     )
 
+# Response Model for Get Points API
 class PointsResponse(BaseModel):
+    """
+    Response containing the number of points awarded for a receipt.
+    """
     points: int = Field(
         ..., 
         description="The number of points awarded", 
         json_schema_extra={"example": 100}
     )
 
+# Function to calculate points for a receipt based on specified rules
 def calculate_points(receipt: Receipt) -> int:
+    """
+    Calculate points for a receipt using various rules
+    """
     points = 0
 
     # Rule 1: One point for every alphanumeric character in the retailer name
@@ -105,19 +128,30 @@ def calculate_points(receipt: Receipt) -> int:
 
     return points
 
+# In-memory databases to store receipt and points data
 receipts_db: Dict[str, Receipt] = {}
 points_db: Dict[str, int] = {}
 
+# Process Receipt Endpoint
 @app.post("/receipts/process", response_model=ReceiptResponse, status_code=200)
-async def process_receipt(receipt: Receipt):    
+async def process_receipt(receipt: Receipt):
+    """
+    Endpoint to process a receipt. Assigns a unique ID, calculates points,
+    and stores the receipt and points data in in-memory databases.
+    """ 
     receipt_id = str(uuid4())
     receipts_db[receipt_id] = receipt.model_dump()
     points_db[receipt_id] = calculate_points(receipt)
 
     return {"id": receipt_id}
 
+# Get Points Endpoint
 @app.get("/receipts/{id}/points", response_model=PointsResponse, status_code=200)
 async def get_points(id: str = Path(..., pattern = "^\\S+$", description="Receipt ID")):
+    """
+    Endpoint to retrieve points awarded for a receipt using its unique ID.
+    Returns 404 error if no receipt is found for the given ID.
+    """
     id = id.strip('"')
 
     if id not in points_db:
