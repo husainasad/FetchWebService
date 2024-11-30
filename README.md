@@ -66,6 +66,13 @@ Get Points:
 curl -X GET "http://127.0.0.1:8000/receipts/{id}/points"
 ```
 
+### Test Suite
+The Test suite in Tests/Test_FetchApp is used to verify the application functionality by executing a series of tests. <br>
+
+Run the tests using the command `pytest` <br>
+Use -v flag to get detailed output for each test <br>
+
+
 ## Containerized Setup
 For a more robust deployment, you can (and should) run the application in a Docker container. <br>
 The following steps help to set up the application in containerized environment:

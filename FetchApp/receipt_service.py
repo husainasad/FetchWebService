@@ -13,21 +13,61 @@ AFTERNOON_END = time(16, 0)
 PRICE_MULTIPLIER = Decimal("0.2")
 
 class Item(BaseModel):
-    shortDescription: str = Field(..., pattern = "^[\\w\\s\\-]+$", description="The Short Product Description for the item.", example="Mountain Dew 12PK")
-    price: str = Field(..., pattern = "^\\d+\\.\\d{2}$", description="The total price payed for this item.", example="6.49")
+    shortDescription: str = Field(
+        ..., 
+        pattern = "^[\\w\\s\\-]+$", 
+        description="The Short Product Description for the item.", 
+        json_schema_extra={"example": "Mountain Dew 12PK"}
+    )
+    price: str = Field(
+        ..., 
+        pattern = "^\\d+\\.\\d{2}$", 
+        description="The total price payed for this item.", 
+        json_schema_extra={"example": "6.49"}
+    )
 
 class Receipt(BaseModel):
-    retailer: str = Field(..., pattern = "^[\\w\\s\\-&]+$", description="The name of the retailer or store the receipt is from.", example="Target")
-    purchaseDate: date = Field(..., description="The date of the purchase printed on the receipt.", example = "2022-01-01")
-    purchaseTime: time = Field(..., description="The time of the purchase printed on the receipt. 24-hour time expected.", example = "13:01")
-    items: List[Item] = Field(..., min_items=1, description="List of items purchased")
-    total: str = Field(..., pattern = "^\\d+\\.\\d{2}$", description="The total amount paid on the receipt.", example = "35.35")
+    retailer: str = Field(
+        ..., 
+        pattern = "^[\\w\\s\\-&]+$", 
+        description="The name of the retailer or store the receipt is from.", 
+        json_schema_extra={"example": "Target"}
+    )
+    purchaseDate: date = Field(
+        ..., 
+        description="The date of the purchase printed on the receipt.", 
+        json_schema_extra={"example": "2022-01-01"}
+    )
+    purchaseTime: time = Field(
+        ..., 
+        description="The time of the purchase printed on the receipt. 24-hour time expected.", 
+        json_schema_extra={"example": "13:01"}
+    )
+    items: List[Item] = Field(
+        ..., 
+        min_length=1, 
+        description="List of items purchased"
+    )
+    total: str = Field(
+        ..., 
+        pattern = "^\\d+\\.\\d{2}$", 
+        description="The total amount paid on the receipt.", 
+        json_schema_extra={"example": "35.35"}
+    )
 
 class ReceiptResponse(BaseModel):
-    id: str = Field(..., pattern = "^\\S+$", description="Returns the ID assigned to the receipt", example = "adb6b560-0eef-42bc-9d16-df48f30e89b2")
+    id: str = Field(
+        ..., pattern = "^\\S+$", 
+        description="Returns the ID assigned to the receipt", 
+        json_schema_extra={"example": "adb6b560-0eef-42bc-9d16-df48f30e89b2"}
+    )
 
 class PointsResponse(BaseModel):
-    points: int = Field(..., description="The number of points awarded", example = 100)
+    points: int = Field(
+        ..., 
+        description="The number of points awarded", 
+        json_schema_extra={"example": 100}
+    )
 
 def calculate_points(receipt: Receipt) -> int:
     points = 0
